@@ -1,0 +1,23 @@
+services:
+  restui-backend:
+    build:
+      target: builder
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      # Monte le code source pour hot-reload — écrase le COPY du Dockerfile
+      - ./backend:/app
+      # config.yaml depuis la racine du projet (pas dans backend/)
+      - ./config.yaml:/app/config.yaml:ro
+    ports:
+      # Exposé sur loopback uniquement — pas accessible depuis l'extérieur
+      - "127.0.0.1:8000:8000"
+    environment:
+      - LOG_LEVEL=debug
+      - DEBUG=true
+
+# En dev local, caddy_net n'est pas nécessairement créé par l'infra Pi5.
+# Ce bloc le crée localement comme réseau bridge ordinaire pour que
+# docker compose up fonctionne sans Caddy installé.
+networks:
+  caddy_net:
+    external: false

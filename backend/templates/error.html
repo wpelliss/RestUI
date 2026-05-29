@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Erreur — RestUI{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center py-24 text-center">
+  <div class="text-5xl font-bold text-gray-300 mb-4">Erreur</div>
+  <p class="text-gray-600 text-lg max-w-md">{{ error }}</p>
+  <a href="/" class="mt-8 px-5 py-2 rounded-md bg-indigo-600 text-white text-sm
+                     font-medium hover:bg-indigo-700 transition-colors duration-150">
+    Retour
+  </a>
+</div>
+{% endblock %}

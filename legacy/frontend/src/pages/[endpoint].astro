@@ -1,0 +1,188 @@
+---
+/**
+ * [endpoint].astro — Page dynamique par endpoint
+ *
+ * Route : /<endpointName>  (ex: /users, /terminals)
+ *
+ * Flux SSR :
+ *   1. GET /api/endpoints → liste tous les endpoints, filtre par name
+ *   2. Reconstruit mergedColumns (colonnes + flag filterable) depuis ep.columns + ep.filters
+ *   3. Lit les query params URL → initialFilters
+ *   4. GET /api/data?endpoint=<name>&<filtres> → initialData
+ *   5. Passe tout au composant Svelte (island client:load)
+ *
+ * Le composant DataTable s'initialise depuis les données SSR → zéro flash de chargement.
+ * L'utilisateur change un filtre → URL mise à jour par history.replaceState → URL shareable.
+ *
+ * Endpoint inconnu (non dans config.yaml) → redirect 302 vers /404.
+ * Backend hors-ligne → page rendue avec dataError, DataTable démarre en mode vide
+ *   et retentera lors du prochain changement de filtre.
+ */
+
+export const prerender = false;
+
+import Layout from '../layouts/Layout.astro';
+import DataTable from '../components/DataTable.svelte';
+
+// ---------------------------------------------------------------------------
+// Types — reflètent le contrat /api/endpoints
+// ---------------------------------------------------------------------------
+
+interface ColMeta      { key: string; label: string }
+interface FilterMeta   { key: string; label: string }
+interface EndpointMeta {
+  name: string;
+  label: string;
+  description?: string;
+  columns: ColMeta[];
+  filters: FilterMeta[];
+}
+interface ColumnConfig {
+  key: string;
+  label: string;
+  filterable: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Résolution de l'endpoint
+// ---------------------------------------------------------------------------
+
+const { endpoint: endpointName } = Astro.params;
+const backendUrl = import.meta.env.BACKEND_URL ?? 'http://localhost:8000';
+
+let endpointMeta: EndpointMeta | null = null;
+let configError: string | null = null;
+
+try {
+  const res = await fetch(`${backendUrl}/api/endpoints`);
+  if (!res.ok) {
+    configError = `Le backend a répondu ${res.status} pour /api/endpoints`;
+  } else {
+    const all: EndpointMeta[] = await res.json();
+    const found = all.find((ep) => ep.name === endpointName);
+    if (!found) {
+      // Endpoint inexistant dans config.yaml → 404
+      return Astro.redirect('/404', 302);
+    }
+    endpointMeta = found;
+  }
+} catch {
+  configError = 'Impossible de joindre le backend';
+}
+
+// Si le backend est hors-ligne, on continue avec une page dégradée (pas de 404).
+// Le composant Svelte affichera l'état d'erreur et permettra de réessayer.
+
+// ---------------------------------------------------------------------------
+// Construction des colonnes avec flag filterable
+// Le backend expose columns (sans filterable) et filters séparément.
+// On merge ici pour passer une structure unifiée au composant.
+// ---------------------------------------------------------------------------
+
+const filterableKeys = endpointMeta?.filters.map((f) => f.key) ?? [];
+
+const mergedColumns: ColumnConfig[] = (endpointMeta?.columns ?? []).map((c) => ({
+  key:        c.key,
+  label:      c.label,
+  filterable: filterableKeys.includes(c.key),
+}));
+
+// ---------------------------------------------------------------------------
+// Filtres initiaux depuis l'URL (query params)
+// Seuls les params correspondant à des colonnes filtrables sont acceptés.
+// Les params internes préfixés _ (tri, pagination) sont exclus.
+// ---------------------------------------------------------------------------
+
+const initialFilters: Record<string, string> = {};
+Astro.url.searchParams.forEach((value, key) => {
+  if (!key.startsWith('_') && filterableKeys.includes(key) && value) {
+    initialFilters[key] = value;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Fetch données initiales (SSR)
+// Permet au premier rendu d'être cohérent avec l'URL partagée.
+// ---------------------------------------------------------------------------
+
+let initialData: Record<string, unknown>[] = [];
+let dataError: string | null = null;
+
+if (endpointMeta) {
+  try {
+    const params = new URLSearchParams({ endpoint: endpointName! });
+    Object.entries(initialFilters).forEach(([k, v]) => params.set(k, v));
+
+    const res = await fetch(`${backendUrl}/api/data?${params.toString()}`);
+    if (!res.ok) {
+      dataError = `Le backend a répondu ${res.status} pour les données`;
+    } else {
+      const json = await res.json();
+      // Contrat /api/data : { rows: [...], total, filtered, endpoint }
+      initialData = Array.isArray(json) ? json : (json.rows ?? []);
+    }
+  } catch {
+    dataError = 'Impossible de charger les données initiales';
+  }
+}
+
+const pageTitle = endpointMeta?.label ?? endpointName ?? 'Endpoint';
+---
+
+<Layout title={pageTitle} active={endpointName ?? ''}>
+
+  <!-- Fil d'Ariane -->
+  <nav class="flex items-center gap-2 text-xs text-slate-400 mb-5" aria-label="Fil d'Ariane">
+    <a href="/" class="hover:text-blue-600 transition-colors">Dashboard</a>
+    <!-- Heroicons: chevron-right (mini) -->
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3">
+      <path fill-rule="evenodd"
+        d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z"
+        clip-rule="evenodd" />
+    </svg>
+    <span class="text-slate-600 font-medium">{pageTitle}</span>
+  </nav>
+
+  <!-- Erreur backend (config non chargée) -->
+  {configError && (
+    <div class="flex items-center gap-3 px-4 py-3 mb-5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm" role="alert">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+      </svg>
+      <span>{configError}</span>
+    </div>
+  )}
+
+  <!-- Erreur de données (config OK, données KO au premier rendu) -->
+  {dataError && !configError && (
+    <div class="flex items-center gap-3 px-4 py-3 mb-5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm" role="alert">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.008v.008H12v-.008Z" />
+      </svg>
+      <span>Données indisponibles au chargement initial. Le composant retentera lors du prochain filtre.</span>
+    </div>
+  )}
+
+  <!-- Description endpoint (optionnel) -->
+  {endpointMeta?.description && (
+    <p class="text-sm text-slate-500 mb-5">{endpointMeta.description}</p>
+  )}
+
+  <!-- DataTable island Svelte 5 -->
+  {(endpointMeta || configError) && (
+    <DataTable
+      client:load
+      initialData={initialData}
+      columns={mergedColumns}
+      filters={initialFilters}
+      endpointName={endpointName!}
+      endpointLabel={pageTitle}
+      initialError={dataError}
+    />
+  )}
+
+</Layout>

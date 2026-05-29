@@ -1,0 +1,112 @@
+# config.yaml.example — Copier vers config.yaml et adapter aux endpoints réels.
+# Ce fichier est commité (pas de secrets). config.yaml peut l'être aussi.
+#
+# config.yaml — Déclaration des endpoints RestUI
+#
+# Structure :
+#   endpoints:
+#     - name:         identifiant unique (utilisé dans ?endpoint=<name>)
+#       label:        libellé affiché dans le sidebar
+#       url:          URL complète de l'API upstream (Basic Auth ajouté automatiquement)
+#       parent_field: clé JSON contenant le tableau si la réponse n'est pas un tableau racine
+#                     (optionnel — omettre si la réponse est directement un tableau JSON)
+#       columns:
+#         - key:       chemin dot-notation vers la valeur (ex: "address.city")
+#           label:     libellé de l'en-tête de colonne
+#           filterable: true → ce champ apparaît comme filtre URL (?key=valeur)
+#           hidden:    true → inclus dans les données mais masqué par défaut dans la table
+#
+# Ajouter une page = ajouter un bloc ci-dessous. Zéro code à écrire.
+# Restart du container nécessaire après modification.
+
+endpoints:
+
+  # -------------------------------------------------------------------------
+  # Endpoint 1 — Liste d'utilisateurs
+  # Réponse upstream attendue : {"users": [{...}, ...]}
+  # -------------------------------------------------------------------------
+  - name: users
+    label: Utilisateurs
+    url: https://api.example.com/v1/users
+    parent_field: users          # la réponse est {"users": [...]} → on extrait ce champ
+
+    columns:
+      - key: id
+        label: ID
+        filterable: false
+        hidden: true             # présent dans les données, masqué dans la table par défaut
+
+      - key: username
+        label: Nom d'utilisateur
+        filterable: true         # ?username=alice → filtre substring insensible à la casse
+
+      - key: email
+        label: Email
+        filterable: true         # ?email=@example.com
+
+      - key: profile.first_name  # dot-notation : accède à {"profile": {"first_name": "..."}}
+        label: Prénom
+        filterable: true
+
+      - key: profile.last_name
+        label: Nom
+        filterable: true
+
+      - key: profile.department
+        label: Département
+        filterable: true
+
+      - key: status
+        label: Statut
+        filterable: true         # ?status=active
+
+      - key: created_at
+        label: Créé le
+        filterable: false
+
+  # -------------------------------------------------------------------------
+  # Endpoint 2 — Inventaire de terminaux (exemple métier Flowbird-like)
+  # Réponse upstream attendue : tableau JSON racine [{...}, ...]
+  # -------------------------------------------------------------------------
+  - name: terminals
+    label: Terminaux
+    url: https://api.example.com/v1/terminals
+    # parent_field absent → la réponse est directement un tableau JSON
+
+    columns:
+      - key: id
+        label: ID terminal
+        filterable: false
+        hidden: true
+
+      - key: serial_number
+        label: Numéro de série
+        filterable: true         # ?serial_number=TRM-
+
+      - key: model
+        label: Modèle
+        filterable: true
+
+      - key: location.city       # dot-notation : {"location": {"city": "Besançon"}}
+        label: Ville
+        filterable: true
+
+      - key: location.site_name
+        label: Site
+        filterable: true
+
+      - key: network.ip_address  # dot-notation à deux niveaux : {"network": {"ip_address": "..."}}
+        label: Adresse IP
+        filterable: false
+
+      - key: firmware_version
+        label: Firmware
+        filterable: true
+
+      - key: status
+        label: Statut
+        filterable: true         # ?status=online
+
+      - key: last_heartbeat
+        label: Dernier heartbeat
+        filterable: false

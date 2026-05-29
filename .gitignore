@@ -1,0 +1,52 @@
+# ─── Secrets — CRITIQUE ──────────────────────────────────────────────────────
+# .env matche backend/.env et tout .env récursif (comportement gitignore standard)
+.env
+.env.local
+.env.*.local
+
+# config.yaml contient les URL API upstream (potentiellement sensibles).
+# Décommenter les deux lignes ci-dessous si considéré sensible dans votre contexte.
+# config.yaml
+# backend/config.yaml
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.Python
+
+# ─── Frontend (si ajout post-MVP) ────────────────────────────────────────────
+node_modules/
+.astro/
+.svelte-kit/
+.output/
+
+# ─── Docker ──────────────────────────────────────────────────────────────────
+# Ne pas ignorer docker-compose.yml — il ne doit pas contenir de secrets.
+# Les secrets vivent dans backend/.env uniquement.
+
+# ─── IDE / OS ────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Coverage / tests ────────────────────────────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/

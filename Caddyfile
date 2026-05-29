@@ -1,0 +1,128 @@
+# RestUI — Caddyfile
+# Caddy 2.8+
+# Réseau Docker : caddy_net (external, créé par l'infra Pi5 existante)
+# Usage dev local : remplacer wilpel.dev par localhost et retirer le bloc TLS
+
+# ─── Snippet security headers ───────────────────────────────────────────────
+(security_headers) {
+    header {
+        # Clickjacking
+        X-Frame-Options "DENY"
+        # MIME sniffing
+        X-Content-Type-Options "nosniff"
+        # HSTS — 1 an, inclut sous-domaines, preload
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Referrer
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Permissions API browser — outil interne, on coupe tout
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+        # CSP — Tailwind CDN + HTMX CDN, self pour assets FastAPI
+        # 'unsafe-inline' requis pour Tailwind Play CDN (injection de styles inline)
+        # Tech debt MVP : passer à un build Tailwind + nonce pour éliminer unsafe-inline
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com https://unpkg.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        # Suppression header serveur
+        -Server
+    }
+}
+
+# ─── Snippet rate limiting ───────────────────────────────────────────────────
+# Nécessite caddy-ratelimit (image custom) — voir Dockerfile.caddy
+# Si image officielle, commenter ce snippet et toutes ses références ci-dessous
+(rate_limit_global) {
+    rate_limit {
+        zone restui_global {
+            key {remote_host}
+            events 120
+            window 1m
+        }
+    }
+}
+
+# ─── Production (wilpel.dev) ─────────────────────────────────────────────────
+restui.wilpel.dev {
+    import security_headers
+    # import rate_limit_global  # décommenter si image caddy custom avec caddy-ratelimit
+
+    encode zstd gzip
+
+    log {
+        output file /var/log/caddy/restui-access.log
+        format json
+    }
+
+    # ── Basic Auth (option A — commenter si Cloudflare Access est actif) ──────
+    # Générer le hash :
+    #   docker run --rm caddy:latest caddy hash-password --plaintext "motdepasse"
+    # Puis exporter dans l'environnement Caddy :
+    #   CADDY_AUTH_PASSWORD_HASH=<hash généré>
+    # basic_auth {
+    #     wilfried {env.CADDY_AUTH_PASSWORD_HASH}
+    # }
+
+    # ── Cloudflare Access (option B — commenter si Basic Auth est actif) ──────
+    # Vérifie la présence du JWT Cloudflare Access avant tout accès
+    # @no_cf_access {
+    #     not header Cf-Access-Jwt-Assertion *
+    # }
+    # respond @no_cf_access 403
+
+    # ── Health check backend (non authentifié — Docker HEALTHCHECK interne) ────
+    handle /health {
+        reverse_proxy restui-backend:8000 {
+            transport http {
+                dial_timeout 2s
+                response_header_timeout 3s
+            }
+        }
+    }
+
+    # ── API JSON → FastAPI backend (routes dédiées pour la lisibilité)
+    # Routes : GET /api/endpoints, GET /api/data, GET /{slug}/rows (HTMX partials)
+    handle /api/* {
+        reverse_proxy restui-backend:8000 {
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Real-IP {remote_host}
+            transport http {
+                dial_timeout 5s
+                response_header_timeout 30s
+            }
+        }
+    }
+
+    # ── Tout le reste → FastAPI backend (HTML Jinja2 + HTMX + JSON API)
+    # Architecture monolith : un seul service FastAPI sert HTML et JSON.
+    # Pas de frontend séparé — HTMX gère les mises à jour partielles.
+    handle {
+        reverse_proxy restui-backend:8000 {
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Real-IP {remote_host}
+            transport http {
+                dial_timeout 5s
+                response_header_timeout 30s
+            }
+        }
+    }
+}
+
+# ─── Dev local (décommenter pour développement sans TLS) ─────────────────────
+# http://localhost:8080 {
+#     import security_headers
+#
+#     handle /health {
+#         reverse_proxy localhost:8000 {
+#             transport http { dial_timeout 2s; response_header_timeout 3s }
+#         }
+#     }
+#
+#     # API JSON → backend FastAPI dev (port 8000)
+#     handle /api/* {
+#         reverse_proxy localhost:8000 {
+#             transport http { dial_timeout 5s; response_header_timeout 30s }
+#         }
+#     }
+#
+#     # Frontend Astro dev (port 4321 — `npm run dev` dans frontend/)
+#     handle {
+#         reverse_proxy localhost:4321
+#     }
+# }

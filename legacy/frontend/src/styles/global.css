@@ -1,0 +1,324 @@
+/* ===================================================
+   RestUI v2 — Global Styles
+   Stack: Astro 4 + Svelte 5 + TailwindCSS 3
+   Tailwind utilities priment sur ces vars.
+   Ce fichier définit les tokens de design et les
+   resets structurels non couverts par Tailwind.
+   =================================================== */
+
+/* --- Design tokens --- */
+:root {
+  /* Sidebar */
+  --sidebar-bg:         #1e293b; /* slate-800 */
+  --sidebar-text:       #94a3b8; /* slate-400 */
+  --sidebar-text-hover: #f1f5f9; /* slate-100 */
+  --sidebar-active-bg:  #334155; /* slate-700 */
+  --sidebar-active-text:#f1f5f9;
+  --sidebar-accent:     #3b82f6; /* blue-500 */
+  --sidebar-width:      240px;
+  --sidebar-collapsed:  64px;
+  --sidebar-transition: 200ms ease;
+
+  /* Content */
+  --content-bg:   #f8fafc; /* slate-50 */
+  --surface:      #ffffff;
+  --border:       #e2e8f0; /* slate-200 */
+
+  /* Typography */
+  --text-primary:   #0f172a; /* slate-900 */
+  --text-secondary: #64748b; /* slate-500 */
+  --text-muted:     #94a3b8; /* slate-400 */
+
+  /* Accent */
+  --accent:       #2563eb; /* blue-600 — WCAG 4.5:1 sur blanc */
+  --accent-hover: #1d4ed8; /* blue-700 */
+  --accent-light: #dbeafe; /* blue-100 */
+
+  /* Feedback */
+  --error-bg:      #fef2f2;
+  --error-border:  #fca5a5;
+  --error-text:    #dc2626;
+  --warning-bg:    #fffbeb;
+  --warning-border:#fcd34d;
+
+  /* Table */
+  --table-header-bg: #f1f5f9; /* slate-100 */
+  --table-row-hover: #f8fafc;
+  --table-border:    #e2e8f0;
+  --row-height:      40px;
+
+  /* Spacing */
+  --content-padding: 24px;
+  --topbar-height:   56px;
+}
+
+/* --- Reset structurel --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--content-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Layout shell --- */
+#app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--sidebar-transition),
+              min-width var(--sidebar-transition);
+  overflow: hidden;
+  z-index: 40;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+  min-width: var(--sidebar-collapsed);
+}
+
+/* --- Content shell --- */
+.content-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--content-bg);
+}
+
+.topbar {
+  height: var(--topbar-height);
+  min-height: var(--topbar-height);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--content-padding);
+  gap: 12px;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--content-padding);
+}
+
+/* --- Focus visible — WCAG 2.2 obligatoire ---
+   Tailwind supprime outline par défaut via son reset.
+   Cette règle prime sur le reset Tailwind. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* --- Table --- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  background: var(--table-header-bg);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--table-border);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--table-border);
+  height: var(--row-height);
+  vertical-align: middle;
+  color: var(--text-primary);
+}
+
+.data-table tbody tr:hover td {
+  background: var(--table-row-hover);
+}
+
+/* Wrapper interne cellule filtrable
+   Note: flex direct sur <td> pose des problèmes de layout table.
+   Utiliser .cell-inner à l'intérieur du <td>. */
+.cell-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.cell-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Bouton loupe par cellule — visible au hover de la ligne */
+.filter-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms, color 150ms, background 150ms;
+}
+
+.data-table tbody tr:hover .filter-btn {
+  opacity: 1;
+}
+
+.filter-btn:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* --- Skeleton animation --- */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 3px;
+}
+
+/* --- Chips de filtres actifs --- */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.filter-chip button {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+  margin-left: 2px;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.filter-chip button:hover {
+  color: var(--accent-hover);
+}
+
+/* --- Scrollbar discrète sur le container table --- */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: var(--content-bg);
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* --- Mobile : sidebar masquée, slide-over via JS --- */
+@media (max-width: 767px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 39;
+  }
+
+  .sidebar.open ~ .sidebar-overlay {
+    display: block;
+  }
+
+  .content-shell {
+    width: 100%;
+  }
+}
+
+/* --- Tablette : première colonne sticky sur scroll horizontal --- */
+@media (max-width: 1023px) {
+  .data-table th:first-child,
+  .data-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: inherit;
+    z-index: 1;
+  }
+
+  .data-table tbody tr:hover td:first-child {
+    background: var(--table-row-hover);
+  }
+}

@@ -1,0 +1,328 @@
+---
+/**
+ * Layout.astro — Shell principal RestUI v2
+ *
+ * - Sidebar slate-800, collapsible (240px ↔ 64px), préf localStorage
+ * - Topbar minimaliste : titre seul + hamburger mobile
+ * - Indicateur backend (dot vert/rouge)
+ * - Heroicons SVG inline — zéro dépendance externe
+ * - System font stack — fonctionne hors-ligne (Pi5)
+ *
+ * Props:
+ *   title   — titre affiché dans <title> et topbar
+ *   active  — nom de l'endpoint actif (highlight sidebar)
+ */
+
+interface EndpointMeta {
+  name: string;
+  label: string;
+}
+
+interface Props {
+  title: string;
+  active?: string;
+}
+
+const { title, active = '' } = Astro.props;
+
+const backendUrl = import.meta.env.BACKEND_URL ?? 'http://localhost:8000';
+let endpoints: EndpointMeta[] = [];
+let backendOnline = false;
+
+try {
+  const res = await fetch(`${backendUrl}/api/endpoints`);
+  if (res.ok) {
+    endpoints = await res.json();
+    backendOnline = true;
+  }
+} catch {
+  // backend hors-ligne — sidebar affiche un message dégradé
+}
+---
+
+<!doctype html>
+<html lang="fr" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <title>{title} — RestUI</title>
+  <!-- Pas de Google Fonts : system font stack, fonctionne offline sur Pi5 -->
+</head>
+
+<body class="h-full bg-slate-50 font-sans antialiased">
+
+  <div id="app" class="flex h-screen overflow-hidden">
+
+    <!-- =====================================================================
+         SIDEBAR — slate-800, collapsible desktop, slide-over mobile
+    ====================================================================== -->
+    <aside
+      id="sidebar"
+      aria-label="Navigation principale"
+      class="
+        flex flex-col flex-shrink-0
+        bg-slate-800 text-slate-400
+        overflow-hidden z-40
+        transition-[width] duration-200 ease-in-out
+      "
+      style="width: 240px;"
+    >
+      <!-- Brand -->
+      <a
+        href="/"
+        class="
+          flex items-center gap-3 h-14 px-4 flex-shrink-0
+          text-slate-100 no-underline hover:text-white
+          border-b border-slate-700/50
+          transition-colors duration-150
+        "
+      >
+        <!-- Heroicons: circle-stack (server-like) -->
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-6 h-6 flex-shrink-0 text-blue-400">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 2.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125m16.5 2.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+        </svg>
+        <span class="sidebar-text font-bold text-base tracking-tight whitespace-nowrap text-slate-100">
+          RestUI
+        </span>
+      </a>
+
+      <!-- Navigation -->
+      <nav class="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
+
+        <!-- Dashboard -->
+        <a
+          href="/"
+          title="Dashboard"
+          class={`
+            flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium
+            transition-colors duration-150 no-underline
+            ${active === '' || active === 'index'
+              ? 'bg-slate-700 text-slate-100 border-l-[3px] border-blue-500 pl-[9px]'
+              : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-100'}
+          `}
+        >
+          <!-- Heroicons: squares-2x2 (dashboard) -->
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+          </svg>
+          <span class="sidebar-text">Dashboard</span>
+        </a>
+
+        <!-- Séparateur endpoints -->
+        {endpoints.length > 0 && (
+          <p class="sidebar-text px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
+            Endpoints
+          </p>
+        )}
+
+        <!-- Endpoints dynamiques -->
+        {endpoints.map((ep) => (
+          <a
+            href={`/${ep.name}`}
+            title={ep.label}
+            class={`
+              flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium
+              transition-colors duration-150 no-underline
+              ${active === ep.name
+                ? 'bg-slate-700 text-slate-100 border-l-[3px] border-blue-500 pl-[9px]'
+                : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-100'}
+            `}
+          >
+            <!-- Heroicons: table-cells -->
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                 stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0 1 18 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0 1 18 7.125v1.5m1.5-2.625C20.496 6 21 6.504 21 7.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 0 1 6 10.875M7.125 12C6.504 12 6 12.504 6 13.125m0-2.25C6 11.496 5.496 12 4.875 12M18 10.875c0 .621-.504 1.125-1.125 1.125M18 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-12 5.25v-5.25m0 5.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125m-12 0v-1.5c0-.621-.504-1.125-1.125-1.125M7.125 15.75c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m0-3.75v3.75m9.75-3.75h-9.75m9.75 0a1.125 1.125 0 0 1 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m0-3.75v3.75m-9.75-5.25v-1.5" />
+            </svg>
+            <span class="sidebar-text">{ep.label}</span>
+          </a>
+        ))}
+
+        {!backendOnline && (
+          <p class="sidebar-text px-3 py-2 text-xs text-slate-500 italic">
+            Backend hors-ligne
+          </p>
+        )}
+      </nav>
+
+      <!-- Toggle collapse (desktop uniquement) -->
+      <div class="flex justify-center py-3 border-t border-slate-700/50">
+        <button
+          id="sidebarToggleDesktop"
+          aria-label="Réduire la sidebar"
+          title="Réduire la sidebar"
+          class="
+            hidden md:flex
+            w-8 h-8 rounded-lg items-center justify-center
+            text-slate-500 hover:text-slate-300 hover:bg-slate-700
+            transition-colors duration-150 focus-visible:outline focus-visible:outline-2
+            focus-visible:outline-blue-500
+          "
+        >
+          <!-- Heroicons: chevron-double-left — JS tourne l'icône quand collapsed -->
+          <svg id="sidebarToggleIcon" xmlns="http://www.w3.org/2000/svg" fill="none"
+               viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 transition-transform duration-200">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="m18.75 4.5-7.5 7.5 7.5 7.5m-6-15L5.25 12l7.5 7.5" />
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Overlay mobile -->
+    <div
+      id="sidebarOverlay"
+      class="fixed inset-0 bg-black/40 z-30 hidden"
+      aria-hidden="true"
+    ></div>
+
+    <!-- =====================================================================
+         CONTENT SHELL
+    ====================================================================== -->
+    <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+
+      <!-- TOPBAR — titre seul + hamburger mobile + indicateur backend -->
+      <header class="
+        flex items-center h-14 flex-shrink-0
+        bg-white border-b border-slate-200
+        px-4 md:px-6 gap-3 z-10
+      ">
+        <!-- Hamburger — mobile uniquement -->
+        <button
+          id="sidebarToggleMobile"
+          aria-label="Ouvrir le menu"
+          class="
+            md:hidden
+            flex items-center justify-center w-8 h-8 rounded-md
+            text-slate-500 hover:text-slate-700 hover:bg-slate-100
+            transition-colors duration-150 focus-visible:outline focus-visible:outline-2
+            focus-visible:outline-blue-500
+          "
+        >
+          <!-- Heroicons: bars-3 -->
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+
+        <!-- Titre de page -->
+        <h1 class="flex-1 text-base font-semibold text-slate-900 truncate">{title}</h1>
+
+        <!-- Indicateur connexion backend -->
+        <div class="flex items-center gap-1.5 text-xs text-slate-400" aria-live="polite">
+          <span class={`w-2 h-2 rounded-full flex-shrink-0 ${backendOnline ? 'bg-green-400' : 'bg-red-400'}`}></span>
+          <span class="hidden sm:inline">{backendOnline ? 'Backend connecté' : 'Backend hors-ligne'}</span>
+        </div>
+      </header>
+
+      <!-- MAIN -->
+      <main class="flex-1 overflow-y-auto p-4 md:p-6" id="mainContent">
+        <slot />
+      </main>
+
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       JS VANILLA — sidebar collapse (desktop) + slide-over (mobile)
+       Aucune dépendance externe. Persistance localStorage.
+  ====================================================================== -->
+  <script is:inline>
+    (function () {
+      const sidebar     = document.getElementById('sidebar');
+      const overlay     = document.getElementById('sidebarOverlay');
+      const btnDesktop  = document.getElementById('sidebarToggleDesktop');
+      const btnMobile   = document.getElementById('sidebarToggleMobile');
+      const toggleIcon  = document.getElementById('sidebarToggleIcon');
+      const KEY         = 'restui_sidebar_collapsed';
+      const W_EXPANDED  = '240px';
+      const W_COLLAPSED = '64px';
+
+      if (!sidebar) return;
+
+      // ---- Helpers ----
+      function isCollapsed() {
+        return sidebar.dataset.collapsed === '1';
+      }
+
+      function setCollapsed(val) {
+        sidebar.dataset.collapsed = val ? '1' : '0';
+        sidebar.style.width = val ? W_COLLAPSED : W_EXPANDED;
+        if (toggleIcon) {
+          toggleIcon.style.transform = val ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+        if (btnDesktop) {
+          btnDesktop.setAttribute('aria-label', val ? 'Déplier la sidebar' : 'Réduire la sidebar');
+          btnDesktop.setAttribute('title', val ? 'Déplier la sidebar' : 'Réduire la sidebar');
+        }
+        localStorage.setItem(KEY, val ? '1' : '0');
+      }
+
+      // ---- Init état depuis localStorage ----
+      if (localStorage.getItem(KEY) === '1') {
+        setCollapsed(true);
+      }
+
+      // ---- Desktop toggle ----
+      if (btnDesktop) {
+        btnDesktop.addEventListener('click', function () {
+          setCollapsed(!isCollapsed());
+        });
+      }
+
+      // ---- Mobile slide-over ----
+      function openMobile() {
+        sidebar.style.position = 'fixed';
+        sidebar.style.top      = '0';
+        sidebar.style.left     = '0';
+        sidebar.style.height   = '100%';
+        sidebar.style.width    = W_EXPANDED;
+        sidebar.style.zIndex   = '40';
+        sidebar.style.transform = 'translateX(0)';
+        overlay.classList.remove('hidden');
+      }
+
+      function closeMobile() {
+        sidebar.style.position  = '';
+        sidebar.style.top       = '';
+        sidebar.style.left      = '';
+        sidebar.style.height    = '';
+        sidebar.style.zIndex    = '';
+        sidebar.style.transform = '';
+        // Restaure la largeur desktop
+        sidebar.style.width = isCollapsed() ? W_COLLAPSED : W_EXPANDED;
+        overlay.classList.add('hidden');
+      }
+
+      if (btnMobile) btnMobile.addEventListener('click', openMobile);
+      if (overlay)   overlay.addEventListener('click', closeMobile);
+    })();
+  </script>
+
+  <!-- Styles sidebar collapsed — textes masqués, icônes centrées -->
+  <style is:inline>
+    #sidebar[data-collapsed="1"] .sidebar-text {
+      display: none;
+    }
+    #sidebar[data-collapsed="1"] a,
+    #sidebar[data-collapsed="1"] button {
+      justify-content: center;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    /* WCAG 2.2 : focus-visible restauré (Tailwind reset supprime outline) */
+    :focus-visible {
+      outline: 2px solid #2563eb;
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+  </style>
+
+</body>
+</html>

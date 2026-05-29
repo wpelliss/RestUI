@@ -1,0 +1,36 @@
+services:
+  restui-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    image: restui/backend:latest
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    volumes:
+      # config.yaml monté read-only depuis la racine du projet
+      # (config.yaml n'est pas dans backend/ — il est à la racine)
+      - ./config.yaml:/app/config.yaml:ro
+    networks:
+      - caddy_net
+    # Port 8000 intentionnellement non exposé : Caddy proxifie sur caddy_net.
+    # En dev, voir docker-compose.override.yml.
+    healthcheck:
+      # python -c via urllib.request — pas besoin de curl (absent de python:3.12-slim)
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+networks:
+  caddy_net:
+    external: true

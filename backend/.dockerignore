@@ -1,0 +1,25 @@
+# Ne pas inclure dans l'image Docker
+
+# Secrets — ne doivent JAMAIS être dans l'image
+.env
+.env.*
+
+# Dev / tests
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+.venv/
+venv/
+
+# Fichiers example (remplacés par les vrais au runtime via volume)
+*.example
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
