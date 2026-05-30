@@ -1,0 +1,36 @@
+# Normalise les fins de ligne : LF dans le repo, conversion transparente sur Windows
+* text=auto eol=lf
+
+# Fichiers source — LF forcé
+*.py        text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.ts        text eol=lf
+*.svelte    text eol=lf
+*.astro     text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.toml      text eol=lf
+*.sh        text eol=lf
+*.env*      text eol=lf
+Makefile    text eol=lf
+Dockerfile* text eol=lf
+Caddyfile   text eol=lf
+.gitignore  text eol=lf
+.gitattributes text eol=lf
+
+# Binaires — pas de conversion
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.eot    binary
