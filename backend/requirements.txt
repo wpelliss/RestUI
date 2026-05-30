@@ -9,9 +9,6 @@ uvicorn[standard]==0.34.2
 # Templates HTML (requis pour Jinja2Templates — non bundlé dans fastapi par défaut)
 jinja2==3.1.6
 
-# Multipart form parsing (requis pour les filtres via formulaire HTML)
-python-multipart==0.0.20
-
 # HTTP client async (proxy vers API upstream)
 httpx==0.28.1
 

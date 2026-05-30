@@ -4,10 +4,10 @@
 .env.local
 .env.*.local
 
-# config.yaml contient les URL API upstream (potentiellement sensibles).
-# Décommenter les deux lignes ci-dessous si considéré sensible dans votre contexte.
-# config.yaml
-# backend/config.yaml
+# config.yaml contient les URL API upstream.
+# Gitignored par défaut car les URL peuvent révéler la topologie interne.
+# Committer config.yaml est acceptable si l'équipe en a besoin et si les URL ne sont pas sensibles.
+config.yaml
 
 # ─── Python ──────────────────────────────────────────────────────────────────
 __pycache__/

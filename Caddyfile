@@ -26,17 +26,19 @@
 }
 
 # ─── Snippet rate limiting ───────────────────────────────────────────────────
-# Nécessite caddy-ratelimit (image custom) — voir Dockerfile.caddy
-# Si image officielle, commenter ce snippet et toutes ses références ci-dessous
-(rate_limit_global) {
-    rate_limit {
-        zone restui_global {
-            key {remote_host}
-            events 120
-            window 1m
-        }
-    }
-}
+# DÉSACTIVÉ PAR DÉFAUT — nécessite une image Caddy custom avec xcaddy + caddy-ratelimit.
+# L'image Caddy officielle ne supporte pas ce module — décommenter fera crasher Caddy.
+# Pour activer : builder une image custom (xcaddy build --with github.com/mholt/caddy-ratelimit)
+# et décommenter "# import rate_limit_global" dans le bloc production.
+# (rate_limit_global) {
+#     rate_limit {
+#         zone restui_global {
+#             key {remote_host}
+#             events 120
+#             window 1m
+#         }
+#     }
+# }
 
 # ─── Production (wilpel.dev) ─────────────────────────────────────────────────
 restui.wilpel.dev {
@@ -50,17 +52,19 @@ restui.wilpel.dev {
         format json
     }
 
-    # ── Basic Auth (option A — commenter si Cloudflare Access est actif) ──────
+    # ── Authentification — OBLIGATOIRE avant exposition production ───────────────
+    # CHOISIR UNE option et décommenter. Laisser les deux commentées = accès libre.
+    # Cloudflare Tunnel seul N'EST PAS une barrière d'authentification suffisante.
+
+    # Option A — Basic Auth Caddy (outil interne mono-utilisateur ou petit groupe)
     # Générer le hash :
     #   docker run --rm caddy:latest caddy hash-password --plaintext "motdepasse"
-    # Puis exporter dans l'environnement Caddy :
-    #   CADDY_AUTH_PASSWORD_HASH=<hash généré>
+    # Exporter : CADDY_AUTH_PASSWORD_HASH=<hash> dans l'environnement Caddy
     # basic_auth {
     #     wilfried {env.CADDY_AUTH_PASSWORD_HASH}
     # }
 
-    # ── Cloudflare Access (option B — commenter si Basic Auth est actif) ──────
-    # Vérifie la présence du JWT Cloudflare Access avant tout accès
+    # Option B — Cloudflare Access (SSO, JWT vérifié côté app en défense en profondeur)
     # @no_cf_access {
     #     not header Cf-Access-Jwt-Assertion *
     # }
@@ -121,8 +125,10 @@ restui.wilpel.dev {
 #         }
 #     }
 #
-#     # Frontend Astro dev (port 4321 — `npm run dev` dans frontend/)
+#     # Tout → FastAPI backend (HTML Jinja2 + HTMX + JSON API)
 #     handle {
-#         reverse_proxy localhost:4321
+#         reverse_proxy localhost:8000 {
+#             transport http { dial_timeout 5s; response_header_timeout 30s }
+#         }
 #     }
 # }

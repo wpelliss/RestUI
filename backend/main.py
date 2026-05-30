@@ -6,8 +6,8 @@ Routes exposées :
   GET /                    → redirect vers le premier endpoint configuré
   GET /{slug}              → page complète (layout + table + filtres URL-shareables)
   GET /{slug}/rows         → fragment HTMX (<tbody> filtré uniquement)
-  GET /api/endpoints       → liste JSON des endpoints (consommé par frontend Astro)
-  GET /api/data            → données JSON filtrées (consommé par DataTable.svelte)
+  GET /api/endpoints       → liste JSON des endpoints (disponible pour intégration externe)
+  GET /api/data            → données JSON filtrées (disponible pour intégration externe)
 
 Auth : déléguée à Caddy (Basic Auth). Cette app ne voit jamais de credentials
        utilisateur et ne doit jamais être exposée directement sur Internet.
@@ -214,7 +214,8 @@ def _error_context(request: Request, error: str) -> dict[str, Any]:
 async def lifespan(app: FastAPI):
     settings: Settings = get_settings()
     # log_level est normalisé en uppercase par le validator de Settings
-    logging.basicConfig(level=settings.log_level)
+    # force=True : remplace la config uvicorn déjà initialisée (sinon basicConfig est no-op)
+    logging.basicConfig(level=settings.log_level, force=True)
 
     try:
         yaml_config: YamlConfig = load_yaml_config(settings.config_yaml_path)
@@ -311,7 +312,7 @@ async def root(request: Request):
 
 @app.get("/api/endpoints", tags=["json-api"])
 async def api_endpoints(request: Request) -> list[dict]:
-    """Liste des endpoints configurés — consommé par le frontend Astro (SSR) et la sidebar.
+    """Liste des endpoints configurés — disponible pour intégration externe (curl, scripts).
 
     Retourne uniquement les métadonnées publiques.
     N'expose jamais les URL upstream ni les credentials.
@@ -334,13 +335,14 @@ async def api_endpoints(request: Request) -> list[dict]:
 
 @app.get("/api/data", tags=["json-api"])
 async def api_data(request: Request, endpoint: str) -> JSONResponse:
-    """Données filtrées d'un endpoint — consommé par DataTable.svelte (fetch client).
+    """Données filtrées d'un endpoint — disponible pour intégration externe (curl, scripts).
 
     Query params :
       endpoint=<name>        — obligatoire
       <filter_key>=<valeur>  — optionnel, un par colonne filterable
 
-    Retourne : { rows: [...], total: N, filtered: N, endpoint: "<name>" }
+    Retourne : { rows: [...], count: N, endpoint: "<name>" }
+    count = nombre de lignes après application des filtres.
     """
     yaml_config: YamlConfig = request.app.state.yaml_config
     client: httpx.AsyncClient = request.app.state.http_client
@@ -359,8 +361,7 @@ async def api_data(request: Request, endpoint: str) -> JSONResponse:
 
     return JSONResponse({
         "rows": rows,
-        "total": len(rows),
-        "filtered": len(rows),
+        "count": len(rows),
         "endpoint": endpoint,
     })
 
@@ -410,13 +411,22 @@ async def rows_fragment(request: Request, slug: str):
 
     Appelé par HTMX sur changement de filtre. Pas de rechargement de page complet.
     Les filtres actifs sont passés en query params GET — URL shareable par construction.
+
+    Accès direct (sans HX-Request) → redirect vers /{slug}?... pour préserver le layout.
+    Le header HX-Push-Url dans la réponse indique à HTMX quelle URL pousser dans
+    l'historique (/{slug}?... et non /{slug}/rows?...).
     """
+    # Accès direct sans HTMX — redirect vers la page complète avec le même état de filtre
+    if not request.headers.get("HX-Request"):
+        qs = request.url.query
+        redirect_url = f"/{slug}?{qs}" if qs else f"/{slug}"
+        return RedirectResponse(url=redirect_url, status_code=302)
+
     yaml_config: YamlConfig = request.app.state.yaml_config
     client: httpx.AsyncClient = request.app.state.http_client
 
     ep = yaml_config.get_endpoint(slug)
     if ep is None:
-        # Fragment — pas de page complète, juste un message inline dans le tbody
         return HTMLResponse(
             "<tr><td colspan='99' class='px-4 py-8 text-center text-red-600'>"
             "Endpoint introuvable.</td></tr>",
@@ -425,11 +435,16 @@ async def rows_fragment(request: Request, slug: str):
 
     rows, error = await _fetch_and_process(client, ep, dict(request.query_params))
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "rows.html",
         {"endpoint": ep, "rows": rows, "error": error},
     )
+    # Indique à HTMX de pousser /{slug}?filters dans l'historique (pas /{slug}/rows?...)
+    # → l'URL copiée depuis le navigateur donne la page complète avec layout
+    qs = request.url.query
+    response.headers["HX-Push-Url"] = f"/{slug}?{qs}" if qs else f"/{slug}"
+    return response
 
 
 # ---------------------------------------------------------------------------

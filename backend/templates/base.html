@@ -10,6 +10,12 @@
 
   <!-- HTMX — mises à jour partielles sans rechargement complet -->
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <style>
+    /* Indicateur de chargement HTMX : atténue la table pendant le fetch */
+    .htmx-request #table-body { opacity: 0.4; transition: opacity 0.15s ease; }
+    /* Focus visible sur fond sombre (sidebar bg-gray-900) */
+    .sidebar-link:focus-visible { outline: 2px solid white; outline-offset: 2px; border-radius: 4px; }
+  </style>
 </head>
 
 <body class="h-full flex">
@@ -24,7 +30,7 @@
         {% for ep in endpoints %}
         <li>
           <a href="/{{ ep.name }}"
-             class="flex items-center gap-2 px-3 py-2 rounded-md text-sm
+             class="sidebar-link flex items-center gap-2 px-3 py-2 rounded-md text-sm
                     {% if ep.name == endpoint.name %}
                       bg-indigo-600 text-white font-medium
                     {% else %}

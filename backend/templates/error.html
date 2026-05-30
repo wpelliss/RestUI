@@ -6,9 +6,16 @@
 <div class="flex flex-col items-center justify-center py-24 text-center">
   <div class="text-5xl font-bold text-gray-300 mb-4">Erreur</div>
   <p class="text-gray-600 text-lg max-w-md">{{ error }}</p>
+  {% if endpoint.name %}
+  <a href="/{{ endpoint.name }}" class="mt-8 px-5 py-2 rounded-md bg-indigo-600 text-white text-sm
+                     font-medium hover:bg-indigo-700 transition-colors duration-150">
+    Retour à {{ endpoint.label }}
+  </a>
+  {% else %}
   <a href="/" class="mt-8 px-5 py-2 rounded-md bg-indigo-600 text-white text-sm
                      font-medium hover:bg-indigo-700 transition-colors duration-150">
-    Retour
+    Retour à l'accueil
   </a>
+  {% endif %}
 </div>
 {% endblock %}
